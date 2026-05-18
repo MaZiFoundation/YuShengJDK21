@@ -240,6 +240,30 @@ const char* Abstract_VM_Version::internal_vm_info_string() {
         #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.2 (VS2022)"
       #elif _MSC_VER == 1933
         #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.3 (VS2022)"
+      #elif _MSC_VER == 1934
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.4 (VS2022)"
+      #elif _MSC_VER == 1935
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.5 (VS2022)"
+      #elif _MSC_VER == 1936
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.6 (VS2022)"
+      #elif _MSC_VER == 1937
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.7 (VS2022)"
+      #elif _MSC_VER == 1938
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.8 (VS2022)"
+      #elif _MSC_VER == 1939
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.9 (VS2022)"
+      #elif _MSC_VER == 1940
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.10 (VS2022)"
+      #elif _MSC_VER == 1941
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.11 (VS2022)"
+      #elif _MSC_VER == 1942
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.12 (VS2022)"
+      #elif _MSC_VER == 1943
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.13 (VS2022)"
+      #elif _MSC_VER == 1944
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 17.14 (VS2022)"
+      #elif _MSC_VER == 1950
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 18.0 (VS2026)"
       #else
         #define HOTSPOT_BUILD_COMPILER "unknown MS VC++:" XSTR(_MSC_VER)
       #endif
