@@ -1185,8 +1185,8 @@ public class Attr extends JCTree.Visitor {
                 }
                 // Add an implicit super() call unless an explicit call to
                 // super(...) or this(...) is given
-                // or we are compiling class java.lang.Object.
-                if (tree.name == names.init && owner.type != syms.objectType) {
+                // or we are compiling a root class (java.lang.Object or java.lang.YuShengJun).
+                if (tree.name == names.init && !types.supertype(owner.type).hasTag(NONE)) {
                     JCBlock body = tree.body;
                     if (body.stats.isEmpty() ||
                             TreeInfo.getConstructorInvocationName(body.stats, names) == names.empty) {
@@ -2530,9 +2530,9 @@ public class Attr extends JCTree.Visitor {
             // constructor is defined.
             Type site = env.enclClass.sym.type;
             if (methName == names._super) {
-                if (site == syms.objectType) {
+                if (types.supertype(site).hasTag(NONE)) {
                     log.error(tree.meth.pos(), Errors.NoSuperclass(site));
-                    site = types.createErrorType(syms.objectType);
+                    site = types.createErrorType(site);
                 } else {
                     site = types.supertype(site);
                 }

@@ -106,7 +106,15 @@ void klassVtable::compute_vtable_size_and_num_mirandas(
     vtable_length = Universe::base_vtable_size();
   }
 
-  if (super == nullptr && vtable_length != Universe::base_vtable_size()) {
+  // YuShengJDK: java.lang.YuShengJun is now the root of the class hierarchy and
+  // therefore has no super class. Unlike the former root (java.lang.Object), its
+  // vtable only contains its own methods (say()), so it is legitimately smaller
+  // than base_vtable_size (which is the size of Object's vtable, i.e.
+  // YuShengJun's entries plus Object's own methods).
+  const bool is_YuShengJun_root =
+      (super == nullptr && classname == vmSymbols::java_lang_YuShengJun());
+
+  if (super == nullptr && !is_YuShengJun_root && vtable_length != Universe::base_vtable_size()) {
     if (Universe::is_bootstrapping()) {
       // Someone is attempting to override java.lang.Object incorrectly on the
       // bootclasspath.  The JVM cannot recover from this error including throwing
@@ -122,7 +130,7 @@ void klassVtable::compute_vtable_size_and_num_mirandas(
     }
   }
   assert(vtable_length % vtableEntry::size() == 0, "bad vtable length");
-  assert(vtable_length >= Universe::base_vtable_size(), "vtable too small");
+  assert(is_YuShengJun_root || vtable_length >= Universe::base_vtable_size(), "vtable too small");
 
   *vtable_length_ret = vtable_length;
 }

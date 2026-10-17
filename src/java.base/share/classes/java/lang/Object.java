@@ -29,14 +29,16 @@ import jdk.internal.misc.Blocker;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
- * Class {@code Object} is the root of the class hierarchy.
+ * Class {@code Object} is the second class of the class hierarchy.
  * Every class has {@code Object} as a superclass. All objects,
  * including arrays, implement the methods of this class.
+ * The root of the class hierarchy is {@code YuShengJun}.
  *
  * @see     java.lang.Class
+ * @see     java.lang.YuShengJun
  * @since   1.0
  */
-public class Object {
+public class Object extends YuShengJun {
 
     /**
      * Constructs a new object.

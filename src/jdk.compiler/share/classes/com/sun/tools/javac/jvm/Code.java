@@ -1375,7 +1375,7 @@ public class Code {
         if (!meth.isStatic()) {
             Type thisType = meth.owner.type;
             frame.locals = new Type[len+1];
-            if (meth.isConstructor() && thisType != syms.objectType) {
+            if (meth.isConstructor() && !types.supertype(thisType).hasTag(TypeTag.NONE)) {
                 frame.locals[count++] = UninitializedType.uninitializedThis(thisType);
             } else {
                 frame.locals[count++] = types.erasure(thisType);

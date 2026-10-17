@@ -194,7 +194,8 @@ ciConstantPoolCache* ciInstanceKlass::field_cache() {
     return nullptr;
   }
   if (_field_cache == nullptr) {
-    assert(!is_java_lang_Object(), "Object has no fields");
+    // Note: java.lang.Object can have fields now (inherited from the root class
+    // java.lang.YuShengJun), so it may need a field cache like any other class.
     Arena* arena = CURRENT_ENV->arena();
     _field_cache = new (arena) ciConstantPoolCache(arena, 5);
   }
@@ -355,10 +356,15 @@ void ciInstanceKlass::print_impl(outputStream* st) {
 // Get the superklass of this klass.
 ciInstanceKlass* ciInstanceKlass::super() {
   assert(is_loaded(), "must be loaded");
-  if (_super == nullptr && !is_java_lang_Object()) {
+  if (_super == nullptr) {
     GUARDED_VM_ENTRY(
       Klass* super_klass = get_instanceKlass()->super();
-      _super = CURRENT_ENV->get_instance_klass(super_klass);
+      // YuShengJDK: java.lang.Object now has a super class (java.lang.YuShengJun),
+      // so it must be treated like any other class. Only the root of the class
+      // hierarchy (java.lang.YuShengJun) has no super class.
+      if (super_klass != nullptr) {
+        _super = CURRENT_ENV->get_instance_klass(super_klass);
+      }
     )
   }
   return _super;
@@ -468,7 +474,8 @@ int ciInstanceKlass::compute_nonstatic_fields() {
     _nonstatic_fields = new (arena) GrowableArray<ciField*>(arena, 0, 0, nullptr);
     return 0;
   }
-  assert(!is_java_lang_Object(), "bootstrap OK");
+  // Note: java.lang.Object is no longer guaranteed to have no fields: it
+  // inherits the field(s) of the root class java.lang.YuShengJun.
 
   ciInstanceKlass* super = this->super();
   GrowableArray<ciField*>* super_fields = nullptr;

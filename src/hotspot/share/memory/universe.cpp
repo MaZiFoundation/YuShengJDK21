@@ -544,13 +544,38 @@ oop Universe::swap_reference_pending_list(oop list) {
 #undef assert_pll_ownership
 
 static void reinitialize_vtables() {
-  // The vtables are initialized by starting at java.lang.Object and
+  // The vtables are initialized by starting at the root class and
   // initializing through the subclass links, so that the super
   // classes are always initialized first.
-  for (ClassHierarchyIterator iter(vmClasses::Object_klass()); !iter.done(); iter.next()) {
+  // YuShengJDK: the root of the class hierarchy is java.lang.YuShengJun
+  // (the super class of java.lang.Object); walk from there when present.
+  InstanceKlass* root = vmClasses::Object_klass();
+  Klass* root_super = root->super();
+  if (root_super != nullptr) {
+    root = InstanceKlass::cast(root_super);
+  }
+  for (ClassHierarchyIterator iter(root); !iter.done(); iter.next()) {
     Klass* sub = iter.klass();
     sub->vtable().initialize_vtable();
   }
+
+  // Array classes are not reached by the subclass/sibling walk above (only the
+  // handful appended during bootstrapping are in it). Some arrays are created
+  // after core bootstrapping but before this point, so their vtables were
+  // copied while java.lang.Object's vtable was still empty. Re-initialize all
+  // array vtables now that java.lang.Object (their java_super) is fully set up.
+  class ReinitArrayVtablesClosure : public KlassClosure {
+   public:
+    void do_klass(Klass* k) {
+      if (k->is_array_klass()) {
+        k->vtable().initialize_vtable();
+      }
+    }
+  };
+
+  MutexLocker mcld(ClassLoaderDataGraph_lock);
+  ReinitArrayVtablesClosure cl;
+  ClassLoaderDataGraph::classes_do(&cl);
 }
 
 static void reinitialize_itables() {
@@ -985,6 +1010,18 @@ bool universe_post_init() {
   if (!UseSharedSpaces) {
     reinitialize_vtables();
     reinitialize_itables();
+  }
+
+  // YuShengJDK: java.lang.Class holds Class.desiredAssertionStatus(), which is
+  // invoked by the <clinit> of other classes to initialize their synthetic
+  // $assertionsDisabled field. When a CDS archive is used, such a call site can
+  // already be resolved in the shared constant pool, so invoking it does not
+  // trigger the lazy linking of java.lang.Class that would normally give its
+  // methods valid interpreter entries. Link java.lang.Class up front so that it
+  // is usable as soon as the first class gets initialized.
+  bool class_linked = vmClasses::Class_klass()->link_class_or_fail(CHECK_false);
+  if (!class_linked) {
+    return false;
   }
 
   HandleMark hm(THREAD);

@@ -1207,7 +1207,8 @@ public class Types {
                     Name sname = s.tsym.getQualifiedName();
                     return sname == names.java_lang_Object
                         || sname == names.java_lang_Cloneable
-                        || sname == names.java_io_Serializable;
+                        || sname == names.java_io_Serializable
+                        || sname == names.java_lang_YuShengJun;
                 }
 
                 return false;
@@ -3578,7 +3579,7 @@ public class Types {
             ClassType cls = (ClassType)t;
             if (cls.rank_field < 0) {
                 Name fullname = cls.tsym.getQualifiedName();
-                if (fullname == names.java_lang_Object)
+                if (fullname == names.java_lang_YuShengJun)
                     cls.rank_field = 0;
                 else {
                     int r = rank(supertype(cls));

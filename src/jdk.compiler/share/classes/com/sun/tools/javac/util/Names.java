@@ -114,6 +114,7 @@ public class Names {
     public final Name java_lang_Cloneable;
     public final Name java_lang_Enum;
     public final Name java_lang_Object;
+    public final Name java_lang_YuShengJun;
 
     // names of builtin classes
     public final Name Array;
@@ -310,6 +311,7 @@ public class Names {
         java_lang_Cloneable = fromString("java.lang.Cloneable");
         java_lang_Enum = fromString("java.lang.Enum");
         java_lang_Object = fromString("java.lang.Object");
+        java_lang_YuShengJun = fromString("java.lang.YuShengJun");
 
         // names of builtin classes
         Array = fromString("Array");

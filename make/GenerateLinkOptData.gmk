@@ -70,11 +70,13 @@ $(CLASSLIST_FILE): $(INTERIM_IMAGE_DIR)/bin/java$(EXECUTABLE_SUFFIX) $(CLASSLIST
 	    -cp $(SUPPORT_OUTPUTDIR)/classlist.jar \
 	    build.tools.classlist.HelloClasslist $(LOG_DEBUG)
 	$(GREP) -v HelloClasslist $@.raw > $@.interim
-	$(FIXPATH) $(INTERIM_IMAGE_DIR)/bin/java -Xshare:dump \
-	    -XX:SharedClassListFile=$@.interim -XX:SharedArchiveFile=$@.jsa \
-	    -Xmx128M -Xms128M $(LOG_INFO)
+# YuShengJDK: do not create a CDS archive for this step. The class hierarchy is
+# modified (java.lang.Object extends java.lang.YuShengJun), and CDS archives
+# created from such a hierarchy are not usable (archived resolved call sites do
+# not trigger linking of java.lang.Class before the first <clinit> runs, and the
+# field initializer of the root class cannot run during early archive restore).
+# Simply run the classlist tool without any shared archive.
 	$(FIXPATH) $(INTERIM_IMAGE_DIR)/bin/java -XX:DumpLoadedClassList=$@.raw.2 \
-	    -XX:SharedClassListFile=$@.interim -XX:SharedArchiveFile=$@.jsa \
 	    -Djava.lang.invoke.MethodHandle.TRACE_RESOLVE=true \
 	    -Duser.language=en -Duser.country=US \
 	    --module-path $(SUPPORT_OUTPUTDIR)/classlist.jar \

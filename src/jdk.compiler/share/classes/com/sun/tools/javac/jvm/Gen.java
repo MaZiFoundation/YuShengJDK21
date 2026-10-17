@@ -583,6 +583,32 @@ public class Gen extends JCTree.Visitor {
                 md.body.endpos = TreeInfo.endPos(md.body.stats.last());
 
             md.sym.appendUniqueTypeAttributes(initTAs);
+        } else if (md.name == names.init && md.body != null &&
+                   types.supertype(md.sym.owner.type).hasTag(NONE)) {
+            // YuShengJDK: the root class (java.lang.YuShengJun) has no super class, so
+            // its constructors contain no super() call and are therefore not "initial
+            // constructors" by the usual definition (see TreeInfo.isInitialConstructor).
+            // Instance field initializers still have to be emitted into them.
+            List<JCStatement> stats = md.body.stats;
+            ListBuffer<JCStatement> newstats = new ListBuffer<>();
+
+            while (stats.nonEmpty() && TreeInfo.isSyntheticInit(stats.head)) {
+                newstats.append(stats.head);
+                stats = stats.tail;
+            }
+            // Now insert the initializer code.
+            newstats.appendList(initCode);
+            // And copy all remaining statements.
+            while (stats.nonEmpty()) {
+                newstats.append(stats.head);
+                stats = stats.tail;
+            }
+
+            md.body.stats = newstats.toList();
+            if (md.body.endpos == Position.NOPOS)
+                md.body.endpos = TreeInfo.endPos(md.body.stats.last());
+
+            md.sym.appendUniqueTypeAttributes(initTAs);
         }
     }
 
@@ -1055,7 +1081,7 @@ public class Gen extends JCTree.Visitor {
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
                 Type selfType = meth.owner.type;
-                if (meth.isConstructor() && selfType != syms.objectType)
+                if (meth.isConstructor() && !types.supertype(selfType).hasTag(NONE))
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
                         code.newLocal(

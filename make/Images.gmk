@@ -164,6 +164,10 @@ define CreateCDSArchive
   JRE_TARGETS += $$($1_$2_gen_cds_archive_jre)
 endef
 
+# YuShengJDK: CDS archives are not supported for this modified class hierarchy
+# (see the comment in make/GenerateLinkOptData.gmk), so never create them.
+BUILD_CDS_ARCHIVE := false
+
 ifeq ($(BUILD_CDS_ARCHIVE), true)
   $(foreach v, $(JVM_VARIANTS), \
     $(eval $(call CreateCDSArchive,$v,)) \

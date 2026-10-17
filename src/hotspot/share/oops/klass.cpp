@@ -429,8 +429,11 @@ void Klass::append_to_sibling_list() {
   // add ourselves to superklass' subklass list
   InstanceKlass* super = superklass();
   if (super == nullptr) return;     // special case: class Object
+  // YuShengJDK: interfaces have java.lang.Object as their (implicit) super class,
+  // but java.lang.Object is no longer the root of the hierarchy (java.lang.YuShengJun
+  // is), so check for Object explicitly instead of relying on the root having no super.
   assert((!super->is_interface()    // interfaces cannot be supers
-          && (super->superklass() == nullptr || !is_interface())),
+          && (!is_interface() || super == vmClasses::Object_klass())),
          "an interface can only be a subklass of Object");
 
   // Make sure there is no stale subklass head

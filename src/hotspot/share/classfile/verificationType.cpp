@@ -73,6 +73,13 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
     return !from_is_array ||
       this_class == vmClasses::Cloneable_klass() ||
       this_class == vmClasses::Serializable_klass();
+  } else if (from_is_array) {
+    // An array is assignable to java.lang.Object and, transitively, to any of
+    // Object's super classes. In YuShengJDK the root of the class hierarchy is
+    // java.lang.YuShengJun, so arrays are assignable to it as well.
+    // (Assignability to the interfaces Cloneable / Serializable was handled above.)
+    Klass* object_klass = vmClasses::Object_klass();
+    return object_klass->is_subclass_of(this_class);
   } else if (from_is_object) {
     Klass* from_class;
     if (klass->is_hidden() && klass->name() == from_name) {

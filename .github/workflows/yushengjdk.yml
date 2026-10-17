@@ -1,0 +1,264 @@
+#
+# YuShengJDK - "万物皆余胜军" 构建工作流
+#
+# 构建本仓库中的魔改 OpenJDK 21（java.lang.Object extends java.lang.YuShengJun），
+# 运行 meme 行为验证，并上传可用的 JDK 产物。
+#
+# 说明：
+#  * 主任务是 Windows x86_64（与本地验证过的构建方式一致：Cygwin + MSVC）。
+#  * Windows 构建会禁用 CDS 归档（见 make/Images.gmk、make/GenerateLinkOptData.gmk
+#    中的说明），因此产物不包含 bin/server/classes.jsa，功能完整、启动略慢。
+#  * Linux 任务为附加验证（跨平台一致性），失败不影响 Windows 主任务。
+#
+
+name: 'YuShengJDK'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - yushengjun
+    paths-ignore:
+      - '**/*.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 版本与品牌：v21-YuShengJDK+35 / vendor = MaZiFoundation
+  CONFIGURE_ARGS: >-
+    --disable-warnings-as-errors
+    --with-version-pre=YuShengJDK
+    --with-version-build=35
+    --with-version-opt=no
+    --with-vendor-name=MaZiFoundation
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Windows x86_64 (primary)
+  # ---------------------------------------------------------------------------
+  windows:
+    name: 'Windows x86_64 (server, release)'
+    runs-on: windows-2022
+    timeout-minutes: 300
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 'Sanity check (meme sources present)'
+        run: |
+          if (-not (Test-Path 'src/java.base/share/classes/java/lang/YuShengJun.java')) {
+            throw 'src/java.base/share/classes/java/lang/YuShengJun.java is missing - did you commit the YuShengJDK changes?'
+          }
+
+      - name: 'Free disk space'
+        run: |
+          foreach ($p in @('C:\Program Files\Android', 'C:\Program Files (x86)\Android', 'C:\Android')) {
+            if (Test-Path $p) { Remove-Item -Recurse -Force $p -ErrorAction SilentlyContinue }
+          }
+          Get-PSDrive C | Select-Object Used, Free | Format-List
+
+      - name: 'Install Cygwin build tools'
+        run: |
+          $setup = Join-Path $env:TEMP 'setup-x86_64.exe'
+          Invoke-WebRequest -Uri 'https://cygwin.com/setup-x86_64.exe' -OutFile $setup
+          $packages = 'make,autoconf,zip,unzip,file,gawk'
+          $mirror = 'https://mirrors.kernel.org/sourceware/cygwin/'
+          Start-Process -FilePath $setup -Wait -NoNewWindow -ArgumentList @(
+            '-q', '-R', 'C:\cygwin64', '-s', $mirror, '-P', $packages
+          )
+          & 'C:\cygwin64\bin\bash.exe' -lc 'make --version | head -n 1; autoconf --version | head -n 1'
+
+      - name: 'Set up boot JDK 21'
+        id: bootjdk
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: 'Configure'
+        run: |
+          $bash = 'C:\cygwin64\bin\bash.exe'
+          $cygpath = 'C:\cygwin64\bin\cygpath.exe'
+          $ws = & $cygpath -u $env:GITHUB_WORKSPACE
+          $boot = & $cygpath -u $env:JAVA_HOME
+          Write-Host "workspace : $ws"
+          Write-Host "boot JDK  : $boot"
+          & $bash -lc "cd '$ws' && bash configure $env:CONFIGURE_ARGS --with-boot-jdk='$boot'"
+          $rc = $LASTEXITCODE
+          if ($rc -ne 0) {
+            & $bash -lc "cd '$ws' && tail -n 150 build/*/configure.log 2>/dev/null"
+            exit $rc
+          }
+
+      - name: 'Build (make images)'
+        run: |
+          $bash = 'C:\cygwin64\bin\bash.exe'
+          $ws = & 'C:\cygwin64\bin\cygpath.exe' -u $env:GITHUB_WORKSPACE
+          & $bash -lc "cd '$ws' && set -o pipefail && make images 2>&1 | tail -n 200"
+          exit $LASTEXITCODE
+
+      - name: 'Verify meme behaviour'
+        run: |
+          $jdk = 'build\windows-x86_64-server-release\images\jdk'
+          $out = 'meme-test-classes'
+          New-Item -ItemType Directory -Force $out | Out-Null
+
+          $src = @'
+          import java.lang.YuShengJun;
+          import java.util.ArrayList;
+
+          public class YuShengJunTest {
+              static int failures = 0;
+              static void check(String label, boolean ok) {
+                  System.out.println((ok ? "[PASS] " : "[FAIL] ") + label);
+                  if (!ok) failures++;
+              }
+              public static void main(String[] args) {
+                  final String NAME = "\u4F59\u80DC\u519B";
+                  final String SAY  = "\u4E07\u7269\u7686\u662F\u4F59\u80DC\u519B";
+                  check("Object.class.getSuperclass() == YuShengJun.class",
+                        Object.class.getSuperclass() == YuShengJun.class);
+                  check("YuShengJun.class.getSuperclass() == null",
+                        YuShengJun.class.getSuperclass() == null);
+                  check("new Object() instanceof YuShengJun", new Object() instanceof YuShengJun);
+                  check("\"abc\" instanceof YuShengJun", "abc" instanceof YuShengJun);
+                  check("new int[3] instanceof YuShengJun", new int[3] instanceof YuShengJun);
+                  check("new Object[2][2] instanceof YuShengJun", new Object[2][2] instanceof YuShengJun);
+                  check("new Thread() instanceof YuShengJun", new Thread() instanceof YuShengJun);
+                  check("field: new Object().yuShengJun", NAME.equals(new Object().yuShengJun));
+                  check("field: new Thread().yuShengJun", NAME.equals(new Thread().yuShengJun));
+                  check("field: new ArrayList<>().yuShengJun", NAME.equals(new ArrayList<>().yuShengJun));
+                  check("method: \"abc\".say()", SAY.equals("abc".say()));
+                  check("method: new Object().say()", SAY.equals(new Object().say()));
+                  check("method: new int[3].say()", SAY.equals(new int[3].say()));
+                  check("method: Thread.currentThread().say()", SAY.equals(Thread.currentThread().say()));
+                  System.out.println();
+                  System.out.println("java.version = " + System.getProperty("java.version"));
+                  System.out.println("java.vendor  = " + System.getProperty("java.vendor"));
+                  System.out.println(failures == 0 ? "ALL PASS" : (failures + " FAILURES"));
+                  if (failures != 0) System.exit(1);
+              }
+          }
+          '@
+          Set-Content -Path (Join-Path $out 'YuShengJunTest.java') -Value $src -Encoding ascii
+
+          & "$jdk\bin\javac.exe" -d $out (Join-Path $out 'YuShengJunTest.java')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & "$jdk\bin\java.exe" '-Dstdout.encoding=UTF-8' -cp $out YuShengJunTest
+          exit $LASTEXITCODE
+
+      - name: 'Show java -version'
+        run: |
+          & 'build\windows-x86_64-server-release\images\jdk\bin\java.exe' -version
+
+      - name: 'Package JDK'
+        run: |
+          tar -a -c -f YuShengJDK-windows-x86_64.zip -C build\windows-x86_64-server-release\images jdk
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Item YuShengJDK-windows-x86_64.zip | Select-Object Name, Length
+
+      - name: 'Upload JDK'
+        uses: actions/upload-artifact@v4
+        with:
+          name: YuShengJDK-windows-x86_64
+          path: YuShengJDK-windows-x86_64.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Linux x86_64 (extra cross-check, non-blocking)
+  # ---------------------------------------------------------------------------
+  linux:
+    name: 'Linux x86_64 (extra)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    continue-on-error: true
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 'Install build dependencies'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf zip unzip file \
+            libx11-dev libxext-dev libxrender-dev libxrandr-dev \
+            libxtst-dev libxt-dev libcups2-dev libfontconfig1-dev libasound2-dev
+
+      - name: 'Set up boot JDK 21'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: 'Configure'
+        run: |
+          bash configure $CONFIGURE_ARGS --with-boot-jdk="$JAVA_HOME"
+
+      - name: 'Build (make images)'
+        run: |
+          set -o pipefail
+          make images 2>&1 | tail -n 200
+
+      - name: 'Verify meme behaviour'
+        run: |
+          jdk=build/linux-x86_64-server-release/images/jdk
+          mkdir -p meme-test-classes
+          cat > meme-test-classes/YuShengJunTest.java <<'EOF'
+          import java.lang.YuShengJun;
+          import java.util.ArrayList;
+
+          public class YuShengJunTest {
+              static int failures = 0;
+              static void check(String label, boolean ok) {
+                  System.out.println((ok ? "[PASS] " : "[FAIL] ") + label);
+                  if (!ok) failures++;
+              }
+              public static void main(String[] args) {
+                  final String NAME = "\u4F59\u80DC\u519B";
+                  final String SAY  = "\u4E07\u7269\u7686\u662F\u4F59\u80DC\u519B";
+                  check("Object.class.getSuperclass() == YuShengJun.class",
+                        Object.class.getSuperclass() == YuShengJun.class);
+                  check("YuShengJun.class.getSuperclass() == null",
+                        YuShengJun.class.getSuperclass() == null);
+                  check("new Object() instanceof YuShengJun", new Object() instanceof YuShengJun);
+                  check("\"abc\" instanceof YuShengJun", "abc" instanceof YuShengJun);
+                  check("new int[3] instanceof YuShengJun", new int[3] instanceof YuShengJun);
+                  check("new Object[2][2] instanceof YuShengJun", new Object[2][2] instanceof YuShengJun);
+                  check("field: new Object().yuShengJun", NAME.equals(new Object().yuShengJun));
+                  check("method: \"abc\".say()", SAY.equals("abc".say()));
+                  check("method: new int[3].say()", SAY.equals(new int[3].say()));
+                  System.out.println();
+                  System.out.println("java.version = " + System.getProperty("java.version"));
+                  System.out.println("java.vendor  = " + System.getProperty("java.vendor"));
+                  System.out.println(failures == 0 ? "ALL PASS" : (failures + " FAILURES"));
+                  if (failures != 0) System.exit(1);
+              }
+          }
+          EOF
+          "$jdk/bin/javac" -d meme-test-classes meme-test-classes/YuShengJunTest.java
+          "$jdk/bin/java" -Dstdout.encoding=UTF-8 -cp meme-test-classes YuShengJunTest
+
+      - name: 'Package JDK'
+        run: |
+          tar -czf YuShengJDK-linux-x86_64.tar.gz -C build/linux-x86_64-server-release/images jdk
+
+      - name: 'Upload JDK'
+        uses: actions/upload-artifact@v4
+        with:
+          name: YuShengJDK-linux-x86_64
+          path: YuShengJDK-linux-x86_64.tar.gz
+          if-no-files-found: warn
+          retention-days: 7

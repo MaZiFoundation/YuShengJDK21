@@ -735,7 +735,8 @@ public class TypeEnter implements Completer {
                 supertype = ((tree.mods.flags & Flags.ENUM) != 0)
                 ? attr.attribBase(extending = enumBase(tree.pos, sym), baseEnv,
                                   true, false, false)
-                : (sym.fullname == names.java_lang_Object)
+                : (sym.fullname == names.java_lang_Object ||
+                   sym.fullname == names.java_lang_YuShengJun)
                 ? Type.noType
                 : sym.isRecord()
                 ? attr.attribBase(extending = recordBase(tree.pos, sym), baseEnv,
@@ -807,7 +808,7 @@ public class TypeEnter implements Completer {
 
             attribSuperTypes(env, baseEnv);
 
-            if (sym.fullname == names.java_lang_Object) {
+            if (sym.fullname == names.java_lang_YuShengJun) {
                 if (tree.extending != null) {
                     chk.checkNonCyclic(tree.extending.pos(),
                                        ct.supertype_field);
@@ -1484,7 +1485,7 @@ public class TypeEnter implements Completer {
         Type initType = helper.constructorType();
         MethodSymbol initSym = helper.constructorSymbol();
         ListBuffer<JCStatement> stats = new ListBuffer<>();
-        if (helper.owner().type != syms.objectType) {
+        if (!types.supertype(helper.owner().type).hasTag(NONE)) {
             JCExpression meth;
             if (!helper.enclosingType().hasTag(NONE)) {
                 meth = make.Select(make.Ident(initSym.params.head), names._super);

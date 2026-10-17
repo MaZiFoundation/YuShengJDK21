@@ -1495,7 +1495,14 @@ int ClassLoader::compute_Object_vtable() {
   // code to determine actual value from file
   // Would be value '11' if finals were in vtable
   int JDK_1_2_Object_vtable_size = 5;
-  return JDK_1_2_Object_vtable_size * vtableEntry::size();
+
+  // YuShengJDK: java.lang.YuShengJun is the root of the class hierarchy and
+  // java.lang.Object extends it, so Object's vtable starts with YuShengJun's
+  // vtable entries (currently only say()) before Object's own methods. Keep in
+  // sync with java.lang.YuShengJun's non-final instance methods.
+  int YuShengJun_vtable_size = 1;
+
+  return (JDK_1_2_Object_vtable_size + YuShengJun_vtable_size) * vtableEntry::size();
 }
 
 

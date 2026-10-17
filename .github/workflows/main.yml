@@ -30,6 +30,8 @@ on:
     branches-ignore:
       - master
       - pr/*
+      # YuShengJDK: this branch has its own build workflow (yushengjdk.yml)
+      - yushengjun
   workflow_dispatch:
     inputs:
       platforms:

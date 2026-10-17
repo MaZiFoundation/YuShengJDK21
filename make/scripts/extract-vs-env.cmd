@@ -29,6 +29,15 @@ if not "%3" == "auto" set version=-vcvars_ver=%3
 set PATH_BEFORE=%PATH%
 
 call %vcvarscmd% %version% %4 %5 %6 %7 %8 %9
+
+REM YuShengJDK: NETFXSDK paths live under "C:\Program Files (x86)\Windows Kits"
+REM (with a space) and break fixpath short-name conversion. The JDK build does
+REM not need the .NET SDK, so drop those entries from INCLUDE and LIB.
+REM (Single-line IFs only: NETFXSDKDir contains parentheses, which would break
+REM a parenthesized IF block.)
+if defined NETFXSDKDir call set "INCLUDE=%%INCLUDE:%NETFXSDKDir%include\um;=%%"
+if defined NETFXSDKDir call set "LIB=%%LIB:%NETFXSDKDir%lib\um\x64;=%%"
+
 if exist %output% del %output%
 
 call :extract "%PATH_BEFORE%", PATH_BEFORE
